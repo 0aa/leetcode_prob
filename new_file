@@ -1,0 +1,51 @@
+import json
+import requests
+
+
+def load_json_file(file_path):
+    with open(file_path, 'r') as file:
+        data = json.load(file)
+    return data
+
+
+def run_postman_collection(collection, environment):
+    variables = {var['key']: var['value'] for var in environment['values']}
+
+    for item in collection['item']:
+        url = item['request']['url']['raw']
+        method = item['request']['method']
+        headers = {header['key']: header['value'] for header in item['request'].get('header', [])}
+
+        # Replace variables in URL
+        for key, value in variables.items():
+            url = url.replace(f"{{{{{key}}}}}", value)
+
+        print(f"Running {item['name']} ({method}): {url}")
+
+        if method == 'GET':
+            response = requests.get(url, headers=headers)
+        elif method == 'POST':
+            body = json.dumps(item['request']['body']['raw']) if 'body' in item['request'] else None
+            response = requests.post(url, headers=headers, data=body)
+        elif method == 'PUT':
+            body = json.dumps(item['request']['body']['raw']) if 'body' in item['request'] else None
+            response = requests.put(url, headers=headers, data=body)
+        elif method == 'DELETE':
+            response = requests.delete(url, headers=headers)
+        else:
+            print(f"Unsupported HTTP method: {method}")
+            continue
+
+        print(f"Status code: {response.status_code}")
+        print(f"Response: {response.text}")
+        print("=" * 80)
+
+
+if __name__ == "__main__":
+    collection_file_path = "postman_collection.json"
+    environment_file_path = "postman_environment.json"
+
+    collection = load_json_file(collection_file_path)
+    environment = load_json_file(environment_file_path)
+
+    run_postman_collection(collection, environment)
